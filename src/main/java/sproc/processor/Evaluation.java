@@ -25,6 +25,8 @@ public class Evaluation {
 	private int totalNoOfSnips;
 	private Recommender.Distance typeOfDistance;
 	
+	private long elapsedTime;
+	
 	public Evaluation(String codesFile, String vectorsFile, int totalNoOfSnips,
 			int noOfTests, int k, Recommender.Distance typeOfDistance) {
 		this.codeSnipsFile = codesFile;
@@ -50,6 +52,9 @@ public class Evaluation {
 		//List<Recommender> recommenders = new LinkedList<>();
 		
 		truePositives = 0;
+		int count = 0;
+		long startTime = System.nanoTime();
+		
 		for(Pair<CSVRecord, CSVRecord> snipAndVector : snipsAndVecs) {
 			CSVRecord codeRecord = snipAndVector.Left;
 			CSVRecord vectorRecord = snipAndVector.Right;
@@ -59,17 +64,27 @@ public class Evaluation {
 			
 			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
 			
+			//System.out.println("Executing test no. " + count);
+			//long startTime = System.nanoTime();
 			Recommender recommender = new Recommender(codeSnipsFile, vectorsFile, codeSnip);
 			
 			List<Pair<Long, Double>> recommendedSnips = recommender.getTopSnips(k, typeOfDistance);
+			
+			//long endTime = System.nanoTime();
+	    	//long elapsedTime = endTime - startTime;
+	    	
+	    	//System.out.println("Test no: " + count + ". Processing time: " + elapsedTime/(Math.pow(10, 9)) + " seconds");
 			
 			if(recommendedSnips.stream().filter(pair -> pair.Left == codeBlockId).findFirst().isPresent()) {
 				truePositives++;
 			}
 			
+			count++;
 			// might not need this
 			//recommenders.add(recommender);
 		}
+		long endTime = System.nanoTime();
+    	elapsedTime = endTime - startTime;
 		
 		// TODO randomely prune each snippet
 		
@@ -86,6 +101,7 @@ public class Evaluation {
 		System.out.println("Correct predictions @" + k + ": " + truePositives);
 		double precision = (truePositives/(double) noOfTests) * 100;
 		System.out.println("Precision @" + k + ": " + precision + "%");
+		System.out.println("Total time: " + elapsedTime/Math.pow(10, 9) + " seconds");
 		System.out.println("=== === === === ===");
 	}
 	

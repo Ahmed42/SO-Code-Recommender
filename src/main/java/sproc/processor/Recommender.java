@@ -38,6 +38,10 @@ public class Recommender {
 	
 	private int[] kindsOfParsing;
 	
+	// Load and parse all vectors in memory ONCE!
+	//private static List<CSVRecord> IdsAndVectors;
+	private static List<Pair<Long, int[]>> IdsAndVectors = new LinkedList<>();
+	
 	
 	public enum Distance { EUCLIDEAN, COSINE }
 	
@@ -49,6 +53,9 @@ public class Recommender {
 		sortedEuclideanDistances = new LinkedList<>();
 		sortedCosineDistances = new LinkedList<>();
 		
+		if(IdsAndVectors == null) {
+			IdsAndVectors = new LinkedList<>();
+			}
 		
 		kindsOfParsing = new int[] {
 				ASTParser.K_COMPILATION_UNIT, 
@@ -62,20 +69,36 @@ public class Recommender {
 	public List<Pair<Long, Double>> getTopSnips(int noOfsnipsToRecom, Distance typeOfDistance) {
 		computeQueryCodeVector();
 		
+		
 		if(typeOfDistance == Distance.EUCLIDEAN) {
 			if(sortedEuclideanDistances.size() == 0) {
-				Iterable<CSVRecord> IdsAndVectors  = getOrGenerateVectors();
-				computeDistances(IdsAndVectors, typeOfDistance);
+				//Iterable<CSVRecord> IdsAndVectors  = getOrGenerateVectors();
+				//long startTime = System.nanoTime();
+				getOrGenerateVectors();
+				//long endTime = System.nanoTime();
+		    	//long elapsedTime = endTime - startTime;
+		    	//System.out.println("Vectors Time: " + elapsedTime/Math.pow(10, 9) + " seconds.");
+				
+		    	
+		    	//long startTime2 = System.nanoTime();
+				computeDistances(typeOfDistance);
+				//long endTime2 = System.nanoTime();
+		    	//long elapsedTime2 = endTime2 - startTime2;
+		    	//System.out.println("Distances Time: " + elapsedTime2/Math.pow(10, 9) + " seconds.");
 			}
 			
+			
+			
 			sortedEuclideanDistances.sort(Comparator.comparingDouble(distPair -> distPair.Right));
+			
 			
 			return sortedEuclideanDistances.subList(0, noOfsnipsToRecom -1);
 			
 		} else if (typeOfDistance == Distance.COSINE) {
 			if(sortedCosineDistances.size() == 0) {
-				Iterable<CSVRecord> IdsAndVectors  = getOrGenerateVectors();
-				computeDistances(IdsAndVectors, typeOfDistance);
+				//Iterable<CSVRecord> IdsAndVectors  = getOrGenerateVectors();
+				getOrGenerateVectors();
+				computeDistances(typeOfDistance);
 			}
 			
 			Comparator<Pair<Long, Double>> comp = Comparator.comparingDouble(distPair -> distPair.Right);
@@ -83,6 +106,7 @@ public class Recommender {
 			
 			return sortedCosineDistances.subList(0, noOfsnipsToRecom -1);
 		}
+		
 		
 		return null;
 	}
@@ -106,16 +130,12 @@ public class Recommender {
 		}
 	}
 	
-	private void computeDistances(Iterable<CSVRecord> IdsAndVectors, Distance typeOfDistance) {
-		for(CSVRecord idAndVector : IdsAndVectors) {
-			long codeBlockId = Long.parseUnsignedLong(idAndVector.get(0));
-    		String codeVectorStr = idAndVector.get(1);
+	private void computeDistances(Distance typeOfDistance) {
+		
+		for(Pair<Long, int[]> idAndVector : IdsAndVectors) {
+			long codeBlockId = idAndVector.Left;
+			int[] codeVector = idAndVector.Right;
     		double computedDistance;
-    		
-    		int[] codeVector = 
-    				Arrays.stream(codeVectorStr.split(","))
-    				.mapToInt(c -> Integer.parseInt(c.trim()))
-    				.toArray();
     		
     		if(typeOfDistance == Distance.EUCLIDEAN) {
     			computedDistance = computeEuclideanDistance(queryCodeVector, codeVector);
@@ -130,10 +150,10 @@ public class Recommender {
 		}
 	}
 	
-
-	
-	
-	private Iterable<CSVRecord> getOrGenerateVectors() {
+	private void getOrGenerateVectors() {
+		if(IdsAndVectors.size() != 0) {
+			return;
+		}
 		// Check if vector file exists
 		Reader reader = null;
 		Iterable<CSVRecord> records = null;
@@ -154,7 +174,23 @@ public class Recommender {
 			}
 		} 
 		
-		return records;
+		List<CSVRecord> vectorsRecords = new LinkedList<>();
+		records.forEach(vectorsRecords::add);
+		
+		IdsAndVectors = new LinkedList<>();
+		
+		for(CSVRecord vectorRecord : vectorsRecords) {
+			long codeBlockId = Long.parseUnsignedLong(vectorRecord.get(0));
+    		String codeVectorStr = vectorRecord.get(1);
+    		
+    		int[] codeVector = 
+    				Arrays.stream(codeVectorStr.split(","))
+    				.mapToInt(c -> Integer.parseInt(c.trim()))
+    				.toArray();
+    		
+    		IdsAndVectors.add(new Pair<Long, int[]>(codeBlockId, codeVector));
+		}
+		//return records;
 	}
 	
 	

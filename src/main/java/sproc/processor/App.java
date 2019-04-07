@@ -22,7 +22,7 @@ public class App {
 
 	public static void main(String[] args) throws IOException, IllegalArgumentException, IllegalAccessException {
 		
-		Evaluation evaluation = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+		/*Evaluation evaluation = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
 				50, 10, Recommender.Distance.EUCLIDEAN);
 		evaluation.evaluate();
 		evaluation.printResults();
@@ -35,7 +35,49 @@ public class App {
 		Evaluation evaluation3 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
 				100, 5, Recommender.Distance.COSINE);
 		evaluation3.evaluate();
+		evaluation3.printResults();*/
+		
+		/*Evaluation evaluation = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				1000, 5, Recommender.Distance.EUCLIDEAN);
+		evaluation.evaluate();
+		evaluation.printResults();
+		
+		Evaluation evaluation2 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				1000, 10, Recommender.Distance.EUCLIDEAN);
+		evaluation2.evaluate();
+		evaluation2.printResults();
+		
+		Evaluation evaluation3 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				1000, 5, Recommender.Distance.COSINE);
+		evaluation3.evaluate();
 		evaluation3.printResults();
+		
+		Evaluation evaluation4 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				1000, 10, Recommender.Distance.COSINE);
+		evaluation4.evaluate();
+		evaluation4.printResults();*/
+		
+		// 133870
+		
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870,
+				1000, 5, Recommender.Distance.EUCLIDEAN);
+		evaluation.evaluate();
+		evaluation.printResults();
+		
+		Evaluation evaluation2 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870,
+				1000, 10, Recommender.Distance.EUCLIDEAN);
+		evaluation2.evaluate();
+		evaluation2.printResults();
+		
+		Evaluation evaluation3 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870,
+				1000, 5, Recommender.Distance.COSINE);
+		evaluation3.evaluate();
+		evaluation3.printResults();
+		
+		Evaluation evaluation4 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870,
+				1000, 10, Recommender.Distance.COSINE);
+		evaluation4.evaluate();
+		evaluation4.printResults();
 		
 		System.out.println("Done!");
 	}
