@@ -14,14 +14,35 @@ import org.apache.commons.csv.CSVRecord;
 
 
 public class App {
+	public static String shortCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\more_java_code_snips.csv";
+	public static String highScoreCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\java_snips_score_10.csv";
+
+	public static String vectorsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_short.csv";
+	public static String vectorsFileHigh = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_high_score.csv";
 
 	public static void main(String[] args) throws IOException, IllegalArgumentException, IllegalAccessException {
-		String shortCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\more_java_code_snips.csv";
-		String highScoreCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\java_snips_score_10.csv";
-
-		String vectorsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_short.csv";
-		String vectorsFileHigh = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_high_score.csv";
-
+		
+		Evaluation evaluation = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				50, 10, Recommender.Distance.EUCLIDEAN);
+		evaluation.evaluate();
+		evaluation.printResults();
+		
+		Evaluation evaluation2 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				100, 5, Recommender.Distance.EUCLIDEAN);
+		evaluation2.evaluate();
+		evaluation2.printResults();
+		
+		Evaluation evaluation3 = new Evaluation(shortCodeSnipsFile, vectorsFileShort, 6700,
+				100, 5, Recommender.Distance.COSINE);
+		evaluation3.evaluate();
+		evaluation3.printResults();
+		
+		System.out.println("Done!");
+	}
+	
+	
+	
+	public static void quickTest() throws IOException {
 		String queryCode1 = "class Test { public void foo() { System.out.println(\"haha\"); } "
 				+ "public boolean bar() { return false; }}"
 				+ "class Test2 { public String foobar() { return \"abort\"; }}";
@@ -42,9 +63,9 @@ public class App {
 		Map<Long, String> codeSnips = getCodeSnips(shortCodeSnipsFile);
 
 		printSnippetsAndDistances(euclideanDists, codeSnips);
-
-		System.out.println("Done!");
 	}
+	
+	
 
 	public static void printSnippetsAndDistances(List<Pair<Long, Double>> snipsDistances, Map<Long, String> codeSnips) {
 		System.out.println("Printing " + snipsDistances.size() + " code snippets: ");
