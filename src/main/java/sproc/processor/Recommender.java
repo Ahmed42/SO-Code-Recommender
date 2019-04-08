@@ -24,6 +24,7 @@ import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 public class Recommender {
 	
 	private String queryCode;
+	private ASTNode queryCodeAST;
 	private int[] queryCodeVector;
 	
 	private String SOSnipsFile;
@@ -45,8 +46,9 @@ public class Recommender {
 	
 	public enum Distance { EUCLIDEAN, COSINE }
 	
-	public Recommender(String SOSnipsFile, String SOVectorsFile, String queryCode) {
+	public Recommender(String SOSnipsFile, String SOVectorsFile, String queryCode, ASTNode queryCodeAST) {
 		this.queryCode = queryCode;
+		this.queryCodeAST = queryCodeAST;
 		this.SOSnipsFile = SOSnipsFile;
 		this.SOSnipsVectorsFile = SOVectorsFile;
 		
@@ -121,10 +123,13 @@ public class Recommender {
 	
 	
 	private void computeQueryCodeVector() {
-		Pair<ASTNode, Integer> typedAST =  getCodeSnipTypedAST(queryCode);
+		if(queryCodeAST == null) {
+			Pair<ASTNode, Integer> typedAST =  getCodeSnipTypedAST(queryCode);
+			queryCodeAST = typedAST.Left;
+		}
 		
-		if(typedAST.Right != -1) {
-			queryCodeVector = computeTreeVector(typedAST.Left);
+		if(queryCodeAST != null) {
+			queryCodeVector = computeTreeVector(queryCodeAST);
 		} else {
 			System.out.println("Malformed query code!");
 		}
@@ -264,12 +269,15 @@ public class Recommender {
      * Compute vector of counts of nodes types.
      */
     private int[] computeTreeVector(ASTNode root) {
+    	
+    	
     	int[] treeVector = new int[92];
     	
     	root.accept(new ASTVisitor() {
         	public void preVisit(ASTNode node) {
         		treeVector[node.getNodeType()-1]++;
-        
+        		
+     
         	}
         });
     	
