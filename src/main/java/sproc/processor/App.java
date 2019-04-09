@@ -28,171 +28,258 @@ public class App {
 
 	public static void main(String[] args) throws IOException, IllegalArgumentException, IllegalAccessException {
 
-		// ASTRewrite rewriter = ASTRewrite.create(node.getAST());
-		// cu.recordModifications();
-
-		// List<StructuralPropertyDescriptor> props = cu.structuralPropertiesForType();
-		
-		
-		//runEvaluations();
-		
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 130000, 500);
-		
-		evaluation.evaluate(1, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
-		evaluation.evaluate(1, Recommender.Distance.COSINE, Evaluation.Pruning.NONE);
-		evaluation.evaluate(10, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
-		//evaluation.evaluate(1, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.IDENTIFIERS);
-		evaluation.evaluate(1, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
-		evaluation.evaluate(1, Recommender.Distance.COSINE, Evaluation.Pruning.STATEMENTS);
-		evaluation.evaluate(10, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
-		
-		
-
 		System.out.println("Done!");
 	}
-	
+
+	/*
+	 * Evaluate multiple combinations of: Distance: [Euc, Cos], k: [1, 10], and
+	 * statements removed: [0, 5])
+	 */
+	public static void distanceEvaluation() {
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
+
+		List<Integer> Ks = Arrays.asList(1, 10);
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
+
+		// Statements = 0, Distance = Euclidean
+		pruneConfig.put(Evaluation.Pruning.STATEMENTS, 0);
+		Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Ks, Recommender.Distance.EUCLIDEAN, pruneConfig);
+
+		System.out.println("Statements Removed: 0");
+		System.out.println("Measure: EUCLIDEAN");
+		for (int k : KsAndTPs.keySet()) {
+			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			System.out.println("Precision@" + k + ": " + precision + ", ");
+		}
+
+		System.out.println("===============");
+
+		// Statements = 0, Distance = Cosine
+		pruneConfig.put(Evaluation.Pruning.STATEMENTS, 0);
+		KsAndTPs = evaluation.evaluate(Ks, Recommender.Distance.COSINE, pruneConfig);
+
+		System.out.println("Statements Removed: 0");
+		System.out.println("Measure: COSINE");
+		for (int k : KsAndTPs.keySet()) {
+			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			System.out.println("Precision@" + k + ": " + precision + ", ");
+		}
+
+		System.out.println("===============");
+		System.out.println("");
+		// Statements = 5, Distance = Euclidean
+		pruneConfig.put(Evaluation.Pruning.STATEMENTS, 5);
+		KsAndTPs = evaluation.evaluate(Ks, Recommender.Distance.EUCLIDEAN, pruneConfig);
+
+		System.out.println("Statements Removed: 5");
+		System.out.println("Measure: EUCLIDEAN");
+		for (int k : KsAndTPs.keySet()) {
+			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			System.out.println("Precision@" + k + ": " + precision + ", ");
+		}
+
+		System.out.println("===============");
+
+		// Statements = 5, Distance = Cosine
+		pruneConfig.put(Evaluation.Pruning.STATEMENTS, 5);
+		KsAndTPs = evaluation.evaluate(Ks, Recommender.Distance.COSINE, pruneConfig);
+
+		System.out.println("Statements Removed: 5");
+		System.out.println("Measure: COSINE");
+		for (int k : KsAndTPs.keySet()) {
+			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			System.out.println("Precision@" + k + ": " + precision + ", ");
+		}
+
+		System.out.println("===============");
+	}
+
+	/*
+	 * Evaluate recommender under different values of k and different number of
+	 * statements removal
+	 */
+	public static void statementRemovalEvaluation() {
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
+
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
+
+		for (int i = 0; i <= 10; i++) {
+			int statementsToRemove = i;
+			pruneConfig.put(Evaluation.Pruning.STATEMENTS, statementsToRemove);
+
+			Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Arrays.asList(1, 5, 10, 20),
+					Recommender.Distance.EUCLIDEAN, pruneConfig);
+
+			System.out.print("Statments removed: " + statementsToRemove + ", ");
+			for (int k : KsAndTPs.keySet()) {
+				double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+				System.out.print("Precision@" + k + ": " + precision + ", ");
+			}
+			System.out.println("");
+
+		}
+	}
+
+	/*
+	 * public static void coolEvals() { Evaluation evaluation = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 1000);
+	 * 
+	 * Map<Evaluation.Pruning, Integer> pruningConfig1 = new HashMap<>();
+	 * pruningConfig1.put(Evaluation.Pruning.STATEMENTS, 0);
+	 * 
+	 * evaluation.evaluate(1, Recommender.Distance.EUCLIDEAN, pruningConfig1);
+	 * evaluation.evaluate(1, Recommender.Distance.COSINE, pruningConfig1);
+	 * 
+	 * System.out.println("\n");
+	 * 
+	 * Map<Evaluation.Pruning, Integer> pruningConfig2 = new HashMap<>();
+	 * pruningConfig2.put(Evaluation.Pruning.STATEMENTS, 2);
+	 * 
+	 * evaluation.evaluate(10, Recommender.Distance.EUCLIDEAN, pruningConfig2);
+	 * evaluation.evaluate(10, Recommender.Distance.COSINE, pruningConfig2);
+	 * 
+	 * System.out.println("\n");
+	 * 
+	 * Map<Evaluation.Pruning, Integer> pruningConfig3 = new HashMap<>();
+	 * pruningConfig3.put(Evaluation.Pruning.STATEMENTS, 5);
+	 * 
+	 * evaluation.evaluate(10, Recommender.Distance.EUCLIDEAN, pruningConfig3);
+	 * evaluation.evaluate(10, Recommender.Distance.COSINE, pruningConfig3);
+	 * 
+	 * System.out.println("\n");
+	 * 
+	 * Map<Evaluation.Pruning, Integer> pruningConfig4 = new HashMap<>();
+	 * pruningConfig4.put(Evaluation.Pruning.STATEMENTS, 10);
+	 * 
+	 * evaluation.evaluate(10, Recommender.Distance.EUCLIDEAN, pruningConfig4);
+	 * evaluation.evaluate(10, Recommender.Distance.COSINE, pruningConfig4);
+	 * 
+	 * System.out.println("\n"); }
+	 */
 	public static void tryingToGetNonParsableCode() {
 		String queryCode1 = "class Test { public void foo() { int x = 1 + 2; System.out.println(\"haha\"); } "
 				+ "public boolean bar() { return false; }}"
 				+ "class Test2 { public String foobar() { return \"abort\"; }}";
-		
+
 		String queryCode = "class heh {void method() { int x = 1; y = x; System.out.println(\"haha\");}}";
-		
+
 		Pair<ASTNode, Integer> pair = getCodeSnipTypedAST(queryCode);
-		
+
 		int isInvalid = pair.Left.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
-		
+
 		System.out.println(isInvalid);
-		
+
 		pair.Left.accept(new ASTVisitor() {
 			public void preVisit(ASTNode node) {
 				System.out.println("===");
-        		System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node);
-        		
-     
-        	}
-		} );
-	}
-	/***
-	public static void useCase() {
-		String queryCode1 = "class Test { public void foo() { int x = 1 + 2; System.out.println(\"haha\"); } "
-				+ "public boolean bar() { return false; }}"
-				+ "class Test2 { public String foobar() { return \"abort\"; }}";
+				System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node);
 
-		String queryCode3 = "public int ixAdd() {" + "return _ix++ + giveMeZero();" + "}";
-
-		String queryCode2 = "    while(m.find()) {\r\n"
-				+ "    	System.out.println(s.substring(m.start(), m.end()));\r\n" + "    }";
-		Recommender recommender = new Recommender(highScoreCodeSnipsFile, vectorsFileHigh, queryCode3, null);
-
-		List<Pair<Long, Double>> IdsAndDistance = recommender.getTopSnips(10, Recommender.Distance.EUCLIDEAN);
-		int[] vector = recommender.getQueryCodeVector();
-
-		System.out.println(vector.length);
-
-		for (int elem : vector) {
-			System.out.print(elem + ", ");
-		}
-
-		System.out.println("\n");
-
-		Reader reader = null;
-		Iterable<CSVRecord> records = null;
-
-		try {
-			reader = new FileReader(highScoreCodeSnipsFile);
-			records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
-
-		} catch (IOException e) {
-		}
-
-		List<String> recommendedSnips = new LinkedList<>();
-
-		for (CSVRecord record : records) {
-			long currentVectorCodeId = Long.parseUnsignedLong(record.get("CodeBlockId"));
-
-			if (IdsAndDistance.stream().anyMatch(pair -> pair.Left == currentVectorCodeId)) {
-				String code = record.get("Content");
-				recommendedSnips.add(code);
 			}
-		}
-
-		recommendedSnips.forEach(snip -> {
-			System.out.println(snip);
-			System.out.println("============");
 		});
-
-		System.out.println("=========");
-		System.out.println("Distances: ");
-		IdsAndDistance.forEach(idAndDist -> System.out.println(idAndDist.Right));
-
-		double median = IdsAndDistance.get(IdsAndDistance.size() / 2).Right;
-
-		double avg = IdsAndDistance.stream().mapToDouble(a -> a.Right).average().getAsDouble();
-
-		System.out.println("median: " + median);
-		System.out.println("avg: " + avg);
 	}
 
-	public static void runEvaluations() {
-		int noOfTests = 500;
-		int totalNumOfSnippets = 133870;
-		int k;
-
-		// k = 10
-		k = 10;
-		// Distance = Euclidean
-
-		// Pruning = None
-		Evaluation evaluation1 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
-
-		evaluation1.evaluate();
-		evaluation1.printResults();
-
-		// Pruning = STATEMENTS
-		Evaluation evaluation2 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
-
-		evaluation2.evaluate();
-		evaluation2.printResults();
-
-		// Pruning = IDENTIFIERS
-		Evaluation evaluation3 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.IDENTIFIERS);
-
-		evaluation3.evaluate();
-		evaluation3.printResults();
-
-		// Distance = Cosine
-
-		// k = 5
-		k = 5;
-		// Distance = Euclidean
-
-		// Pruning = None
-		Evaluation evaluation4 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
-
-		evaluation4.evaluate();
-		evaluation4.printResults();
-
-		// Pruning = STATEMENTS
-		Evaluation evaluation5 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
-
-		evaluation5.evaluate();
-		evaluation5.printResults();
-
-		// Pruning = IDENTIFIERS
-		Evaluation evaluation6 = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets, noOfTests,
-				k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.IDENTIFIERS);
-
-		evaluation6.evaluate();
-		evaluation6.printResults();
-
-	}
-*/
+	/***
+	 * public static void useCase() { String queryCode1 = "class Test { public void
+	 * foo() { int x = 1 + 2; System.out.println(\"haha\"); } " + "public boolean
+	 * bar() { return false; }}" + "class Test2 { public String foobar() { return
+	 * \"abort\"; }}";
+	 * 
+	 * String queryCode3 = "public int ixAdd() {" + "return _ix++ + giveMeZero();" +
+	 * "}";
+	 * 
+	 * String queryCode2 = " while(m.find()) {\r\n" + "
+	 * System.out.println(s.substring(m.start(), m.end()));\r\n" + " }"; Recommender
+	 * recommender = new Recommender(highScoreCodeSnipsFile, vectorsFileHigh,
+	 * queryCode3, null);
+	 * 
+	 * List<Pair<Long, Double>> IdsAndDistance = recommender.getTopSnips(10,
+	 * Recommender.Distance.EUCLIDEAN); int[] vector =
+	 * recommender.getQueryCodeVector();
+	 * 
+	 * System.out.println(vector.length);
+	 * 
+	 * for (int elem : vector) { System.out.print(elem + ", "); }
+	 * 
+	 * System.out.println("\n");
+	 * 
+	 * Reader reader = null; Iterable<CSVRecord> records = null;
+	 * 
+	 * try { reader = new FileReader(highScoreCodeSnipsFile); records =
+	 * CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+	 * 
+	 * } catch (IOException e) { }
+	 * 
+	 * List<String> recommendedSnips = new LinkedList<>();
+	 * 
+	 * for (CSVRecord record : records) { long currentVectorCodeId =
+	 * Long.parseUnsignedLong(record.get("CodeBlockId"));
+	 * 
+	 * if (IdsAndDistance.stream().anyMatch(pair -> pair.Left ==
+	 * currentVectorCodeId)) { String code = record.get("Content");
+	 * recommendedSnips.add(code); } }
+	 * 
+	 * recommendedSnips.forEach(snip -> { System.out.println(snip);
+	 * System.out.println("============"); });
+	 * 
+	 * System.out.println("========="); System.out.println("Distances: ");
+	 * IdsAndDistance.forEach(idAndDist -> System.out.println(idAndDist.Right));
+	 * 
+	 * double median = IdsAndDistance.get(IdsAndDistance.size() / 2).Right;
+	 * 
+	 * double avg = IdsAndDistance.stream().mapToDouble(a ->
+	 * a.Right).average().getAsDouble();
+	 * 
+	 * System.out.println("median: " + median); System.out.println("avg: " + avg); }
+	 * 
+	 * public static void runEvaluations() { int noOfTests = 500; int
+	 * totalNumOfSnippets = 133870; int k;
+	 * 
+	 * // k = 10 k = 10; // Distance = Euclidean
+	 * 
+	 * // Pruning = None Evaluation evaluation1 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
+	 * 
+	 * evaluation1.evaluate(); evaluation1.printResults();
+	 * 
+	 * // Pruning = STATEMENTS Evaluation evaluation2 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
+	 * 
+	 * evaluation2.evaluate(); evaluation2.printResults();
+	 * 
+	 * // Pruning = IDENTIFIERS Evaluation evaluation3 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN,
+	 * Evaluation.Pruning.IDENTIFIERS);
+	 * 
+	 * evaluation3.evaluate(); evaluation3.printResults();
+	 * 
+	 * // Distance = Cosine
+	 * 
+	 * // k = 5 k = 5; // Distance = Euclidean
+	 * 
+	 * // Pruning = None Evaluation evaluation4 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.NONE);
+	 * 
+	 * evaluation4.evaluate(); evaluation4.printResults();
+	 * 
+	 * // Pruning = STATEMENTS Evaluation evaluation5 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
+	 * 
+	 * evaluation5.evaluate(); evaluation5.printResults();
+	 * 
+	 * // Pruning = IDENTIFIERS Evaluation evaluation6 = new
+	 * Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, totalNumOfSnippets,
+	 * noOfTests, k, Recommender.Distance.EUCLIDEAN,
+	 * Evaluation.Pruning.IDENTIFIERS);
+	 * 
+	 * evaluation6.evaluate(); evaluation6.printResults();
+	 * 
+	 * }
+	 */
 	public static void pastEvals() {
 		/*
 		 * Evaluation evaluation8 = new Evaluation(highScoreCodeSnipsFile,

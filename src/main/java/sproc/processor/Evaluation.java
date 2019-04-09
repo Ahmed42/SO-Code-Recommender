@@ -1,28 +1,18 @@
 package sproc.processor;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Reader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
-import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
-import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
-import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
-import org.eclipse.jdt.core.dom.rewrite.ASTRewrite;
-import org.eclipse.jface.text.BadLocationException;
-import org.eclipse.jface.text.Document;
-import org.eclipse.text.edits.MalformedTreeException;
-import org.eclipse.text.edits.TextEdit;
 
 public class Evaluation {
 
@@ -74,8 +64,9 @@ public class Evaluation {
 	// params: number of code snips to evaluate
 	// value of k in precision/recall@k
 	// TODO number of leaf nodes to prune
-
-	public void evaluate(int k, Recommender.Distance typeOfDistance, Pruning typeOfPruning) {
+	
+	
+	public Map<Integer, Integer> evaluate(List<Integer> ks, Recommender.Distance typeOfDistance, Map<Evaluation.Pruning, Integer> pruningConfig) {
 		// Load vectors from file
 
 		// Get random sample from code IDs and vectors to test
@@ -89,6 +80,7 @@ public class Evaluation {
 
 		// Get matching code snips
 		List<CSVRecord> randomCodeRecords = new LinkedList<>();
+		
 		int i = 0;
 		for (CSVRecord codeRecord : codeRecords) {
 			if (i >= randomCodeIdsAndVectors.size()) {
@@ -108,56 +100,80 @@ public class Evaluation {
 
 		}
 
-		int truePositives = 0;
+		
 		long startTime = System.nanoTime();
 		Recommender recommender = new Recommender(selectedCodeIdsAndVectors);
-
+		
+		Map<Integer, Integer> KsAndTPs = new HashMap<>();
 		// Iterate over each test case
+		
 		for (CSVRecord codeRecord : randomCodeRecords) {
 
 			String queryCode = codeRecord.get("Content");
 
 			ASTNode alteredAST = null;
-
-			switch (typeOfPruning) {
-			case LINES:
-				// Need more work. For example, number of lines could exceed the snip .. etc
-				queryCode = pruneLines(queryCode, 3);
-				break;
-			case IDENTIFIERS:
-				alteredAST = alterIdentifiers(queryCode, 5);
-				break;
-			case STATEMENTS:
-				alteredAST = removeStatements(queryCode, 3);
-			case NONE:
-				break;
+			
+			for(Pruning typeOfPruning : pruningConfig.keySet()) {
+				int pruningValue = pruningConfig.get(typeOfPruning);
+				switch (typeOfPruning) {
+				case STATEMENTS:
+					alteredAST = removeStatements(queryCode, pruningValue);
+					break;
+				case IDENTIFIERS:
+					alteredAST = alterIdentifiers(queryCode, pruningValue);
+					break;
+				case LINES:
+					// Need more work. For example, number of lines could exceed the snip .. etc
+					queryCode = pruneLines(queryCode, 3);
+					break;
+				case NONE:
+					break;
+				}
 			}
+
+			
 
 			List<Pair<Long, Double>> similarCodeIdsAndDistances = 
 					recommender.getSimilarSnips(typeOfDistance, queryCode, alteredAST);
 			
 			
 			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
+			//System.out.println(codeBlockId + ":" + similarCodeIdsAndDistances.get(0).Left);
 
-			if (similarCodeIdsAndDistances.subList(0, k).stream().filter(pair -> pair.Left == codeBlockId).findFirst().isPresent()) {
-				truePositives++;
+			
+			
+			for(int k: ks) {
+				if (similarCodeIdsAndDistances.subList(0, k).stream().filter(pair -> pair.Left == codeBlockId).findFirst().isPresent()) {
+					//int tp = KsAndTPs.get(k);
+					//KsAndTPs.put(k, tp + 1);
+					
+					KsAndTPs.merge(k, 1, Integer::sum);
+					//truePositives++;
+				}
+				
+				
 			}
+			
 		}
 
 		long endTime = System.nanoTime();
 		long elapsedTime = endTime - startTime;
 
+		//double precision = (truePositives / (double) noOfTests) * 100;
+		//System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
 		
-		System.out.println("=== === === === ===");
-		System.out.println("Distance measure: " + typeOfDistance.name());
+		//System.out.println("=== === === === ===");
+		/*System.out.println("Distance measure: " + typeOfDistance.name());
 		System.out.println("No of tests: " + noOfTests);
 		System.out.println("Randomely chosen from: " + totalNoOfSnips + " code snippets");
-		System.out.println("Pruning: " + typeOfPruning.name());
+		System.out.println("Pruning: " + pruningConfig);
 		System.out.println("Correct predictions @" + k + ": " + truePositives);
-		double precision = (truePositives / (double) noOfTests) * 100;
+		
 		System.out.println("Precision @" + k + ": " + precision + "%");
 		System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
-		System.out.println("=== === === === ===");
+		System.out.println("=== === === === ===");*/
+		
+		return KsAndTPs;
 	}
 
 	/*public void printResults() {
