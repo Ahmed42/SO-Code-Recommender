@@ -50,6 +50,7 @@ public class Recommender {
 		if (queryCodeAST != null) {
 			queryCodeVector = Utils.computeTreeVector(queryCodeAST);
 		} else {
+			System.out.println(queryCode);
 			System.out.println("Malformed query code!");
 		}
 

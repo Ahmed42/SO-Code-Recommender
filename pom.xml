@@ -36,6 +36,22 @@
     <version>1.6</version>
 </dependency>
 
+<!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-core -->
+<dependency>
+    <groupId>org.apache.lucene</groupId>
+    <artifactId>lucene-core</artifactId>
+    <version>8.0.0</version>
+</dependency>
+
+<!-- https://mvnrepository.com/artifact/org.apache.lucene/lucene-queryparser -->
+<dependency>
+    <groupId>org.apache.lucene</groupId>
+    <artifactId>lucene-queryparser</artifactId>
+    <version>8.0.0</version>
+</dependency>
+
+
+
 <!-- https://mvnrepository.com/artifact/org.eclipse.jface/org.eclipse.jface.text -->
 <!-- https://mvnrepository.com/artifact/org.eclipse.jface/text -->
 <!-- <dependency>

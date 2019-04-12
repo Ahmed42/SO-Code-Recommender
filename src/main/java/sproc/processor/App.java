@@ -12,6 +12,7 @@ import java.util.Map;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.lucene.queryparser.classic.ParseException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
@@ -25,18 +26,135 @@ public class App {
 
 	public static String vectorsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_short.csv";
 	public static String vectorsFileHigh = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_high_score.csv";
+	
+	public static String rectifiedVecsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_short.csv"; 
+	public static String rectifiedVecsFileLong = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_long.csv";
+	
+	//public static String rectifiedVecsFileShort2 = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_short2.csv"; 
+	//public static String rectifiedVecsFileLong2 = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_long2.csv";
 
-	public static void main(String[] args) throws IOException, IllegalArgumentException, IllegalAccessException {
+	
+	public static void main(String[] args) throws IOException {
 
+		//distanceEvaluationConcise();
+		
+		//TestLuc.runTest();
+		
+		//quickTest2();
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, 107114, 10);
+		statementRemovalEvaluation(evaluation, 10, Recommender.Distance.EUCLIDEAN);
+		//statementRemovalEvaluation(evaluation, 500, Recommender.Distance.COSINE);
+		
+		
+		//vectorsGeneration();
 		System.out.println("Done!");
+	}
+	
+	public static void quickTest2() {
+		int totalSnips = 107114;
+		int noOfTests = 500;
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, totalSnips, noOfTests);
+		
+		int k = 5;
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
+		Map<Integer, Integer> result = 
+				evaluation.evaluate(Arrays.asList(k), Recommender.Distance.EUCLIDEAN, pruneConfig);
+		
+		System.out.println("precision@" + k + ": " + result.get(k)/(double) noOfTests * 100);
+	    result = evaluation.evaluate(Arrays.asList(k), Recommender.Distance.COSINE, pruneConfig);
+	    
+	    System.out.println("precision@" + k + ": " + result.get(k)/(double) noOfTests * 100);
+	}
+	
+	public static void vectorsGeneration() throws IOException {
+		VecGenerator vecGen = new VecGenerator(highScoreCodeSnipsFile, rectifiedVecsFileLong);
+		
+		vecGen.computeAndStoreTreeVectors();
+		
+		vecGen.printResults();
+	}
+	
+	public static void inspectingCSharpSnip() {
+		Iterable<CSVRecord> codeRecords = Utils.loadCSVDataFrom(highScoreCodeSnipsFile, true);
+		
+		List<CSVRecord> retrievedRecords = Utils.getCodeRecordsByIds(Arrays.asList((long)120705123), codeRecords);
+		
+		String snip = retrievedRecords.get(0).get("Content");
+		
+		System.out.println(snip);
+		
+		System.out.println("--------");
+		
+		Pair<ASTNode, Integer> typedAST =  Utils.getCodeSnipTypedAST(snip);
+		
+		ASTNode node = typedAST.Left;
+		
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+				System.out.println("===");
+				System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node);
+
+			}
+		});
+		
+		int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
+		
+		System.out.println("kind " + typedAST.Right);
+		System.out.println("Flag " + node.getFlags());
+		
+		System.out.println(isInvalid);
 	}
 
 	/*
 	 * Evaluate multiple combinations of: Distance: [Euc, Cos], k: [1, 10], and
 	 * statements removed: [0, 5])
 	 */
+	private static void evaluateDistance(Evaluation evaluation, int noOfStmts, Recommender.Distance typeOfDistance,
+			int noOfTests, List<Integer> Ks) {
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
+		pruneConfig.put(Evaluation.Pruning.STATEMENTS, noOfStmts);
+		Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Ks, typeOfDistance, pruneConfig);
+
+		System.out.println("Statements Removed: " + noOfStmts);
+		System.out.println("Measure: " + typeOfDistance.name());
+		for (int k : KsAndTPs.keySet()) {
+			double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
+			System.out.println("Precision@" + k + ": " + precision + ", ");
+		}
+		System.out.println("===============");
+	}
+	
+	public static void distanceEvaluationConcise() {
+		int noOfTests = 500;
+		//int totalSnips = 107114;
+		int totalSnips = 10000;
+		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, totalSnips, noOfTests);
+
+		List<Integer> Ks = Arrays.asList(1,5, 10);
+		
+		// Statements = 0, Distance = Euclidean
+		evaluateDistance(evaluation, 0, Recommender.Distance.EUCLIDEAN, noOfTests, Ks);
+		
+		// Statements = 0, Distance = Cosine
+		evaluateDistance(evaluation, 0, Recommender.Distance.COSINE, noOfTests, Ks);
+		
+		// Statements = 5, Distance = Euclidean
+		evaluateDistance(evaluation, 2, Recommender.Distance.EUCLIDEAN, noOfTests, Ks);
+		
+		// Statements = 5, Distance = Cosine
+		evaluateDistance(evaluation, 2, Recommender.Distance.COSINE, noOfTests, Ks);
+		
+		// Statements = 10, Distance = Euclidean
+		evaluateDistance(evaluation, 5, Recommender.Distance.EUCLIDEAN, noOfTests, Ks);
+				
+		// Statements = 10, Distance = Cosine
+		evaluateDistance(evaluation, 5, Recommender.Distance.COSINE, noOfTests, Ks);
+	}
+	
 	public static void distanceEvaluation() {
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
+		//Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
+		int noOfTests = 500;
+		Evaluation evaluation = new Evaluation(shortCodeSnipsFile, rectifiedVecsFileShort, 6616, noOfTests);
 
 		List<Integer> Ks = Arrays.asList(1, 10);
 		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
@@ -48,7 +166,7 @@ public class App {
 		System.out.println("Statements Removed: 0");
 		System.out.println("Measure: EUCLIDEAN");
 		for (int k : KsAndTPs.keySet()) {
-			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
 			System.out.println("Precision@" + k + ": " + precision + ", ");
 		}
 
@@ -61,7 +179,7 @@ public class App {
 		System.out.println("Statements Removed: 0");
 		System.out.println("Measure: COSINE");
 		for (int k : KsAndTPs.keySet()) {
-			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
 			System.out.println("Precision@" + k + ": " + precision + ", ");
 		}
 
@@ -74,7 +192,7 @@ public class App {
 		System.out.println("Statements Removed: 5");
 		System.out.println("Measure: EUCLIDEAN");
 		for (int k : KsAndTPs.keySet()) {
-			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
 			System.out.println("Precision@" + k + ": " + precision + ", ");
 		}
 
@@ -87,7 +205,7 @@ public class App {
 		System.out.println("Statements Removed: 5");
 		System.out.println("Measure: COSINE");
 		for (int k : KsAndTPs.keySet()) {
-			double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+			double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
 			System.out.println("Precision@" + k + ": " + precision + ", ");
 		}
 
@@ -98,8 +216,9 @@ public class App {
 	 * Evaluate recommender under different values of k and different number of
 	 * statements removal
 	 */
-	public static void statementRemovalEvaluation() {
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
+	public static void statementRemovalEvaluation(Evaluation evaluation, int noOfTests,
+			Recommender.Distance typeOfDistance) {
+		
 
 		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
 
@@ -108,11 +227,12 @@ public class App {
 			pruneConfig.put(Evaluation.Pruning.STATEMENTS, statementsToRemove);
 
 			Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Arrays.asList(1, 5, 10, 20),
-					Recommender.Distance.EUCLIDEAN, pruneConfig);
-
+					typeOfDistance, pruneConfig);
+			
+			System.out.println("Distance: " + typeOfDistance.name());
 			System.out.print("Statments removed: " + statementsToRemove + ", ");
 			for (int k : KsAndTPs.keySet()) {
-				double precision = (KsAndTPs.get(k) / (double) 500) * 100;
+				double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
 				System.out.print("Precision@" + k + ": " + precision + ", ");
 			}
 			System.out.println("");

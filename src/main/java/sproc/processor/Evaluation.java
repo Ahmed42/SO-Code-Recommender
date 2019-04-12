@@ -20,67 +20,56 @@ public class Evaluation {
 	private String vectorsFile;
 
 	private int noOfTests;
-	//private int k;
+	// private int k;
 
-	//int truePositives;
+	// int truePositives;
 
 	// private String ASTsFile;
 	private int totalNoOfSnips;
-	//private Recommender.Distance typeOfDistance;
+	// private Recommender.Distance typeOfDistance;
 	// private boolean pruneSnips;
 
-	//private long elapsedTime;
-	//private List<Pair<Long, int[]>> codeIdsAndVectors;
-	private List<Pair<Long, int[]>> selectedCodeIdsAndVectors;
-	private List<Pair<Long, int[]>> randomCodeIdsAndVectors;
+	// private long elapsedTime;
+	// private List<Pair<Long, int[]>> codeIdsAndVectors;
+	private List<Pair<Long, int[]>> selectedCodeIdsAndVectors; // Total snips
+	private List<Pair<Long, int[]>> randomCodeIdsAndVectors; // Snips vectors to be tested
+
+	private List<CSVRecord> randomCodeRecords; // Snips to be tested
 
 	public enum Pruning {
 		NONE, LINES, IDENTIFIERS, STATEMENTS
 	};
 
-	//private Pruning typeOfPruning;
+	// private Pruning typeOfPruning;
 
 	public Evaluation(String codesFile, String vectorsFile, int totalNoOfSnips, int noOfTests) {
+		long startTime = System.nanoTime();
+		
 		this.codeSnipsFile = codesFile;
 		this.vectorsFile = vectorsFile;
-		
+
 		List<Pair<Long, int[]>> codeIdsAndVectors = Utils.loadVectorsFromCSV(vectorsFile);
 		
+		long endTime = System.nanoTime();
+		long elapsedTime = endTime - startTime;
+		System.out.println("Loading vectors time: " + elapsedTime / Math.pow(10, 9) + " seconds");
+		
+		
+		startTime = System.nanoTime();
 		selectedCodeIdsAndVectors = codeIdsAndVectors.subList(0, totalNoOfSnips);
-		
+
 		randomCodeIdsAndVectors = Utils.selectRandomElements(selectedCodeIdsAndVectors, noOfTests);
-		
+		randomCodeIdsAndVectors.sort(Comparator.comparingDouble(IdAndVector -> IdAndVector.Left));
+
 		this.totalNoOfSnips = totalNoOfSnips;
 
 		this.noOfTests = noOfTests;
-		/*this.k = k;
-		this.typeOfDistance = typeOfDistance;
-
-		this.typeOfPruning = typeOfPruning;
-
-		this.truePositives = 0;*/
-	}
-
-	// params: number of code snips to evaluate
-	// value of k in precision/recall@k
-	// TODO number of leaf nodes to prune
-	
-	
-	public Map<Integer, Integer> evaluate(List<Integer> ks, Recommender.Distance typeOfDistance, Map<Evaluation.Pruning, Integer> pruningConfig) {
-		// Load vectors from file
-
-		// Get random sample from code IDs and vectors to test
-		//List<Pair<Long, int[]>> randomCodeIdsAndVectors = Utils.selectRandomElements(selectedCodeIdsAndVectors, noOfTests);
 
 		Iterable<CSVRecord> codeRecords = Utils.loadCSVDataFrom(codeSnipsFile, true);
 
-		// Pair<Long, int[]> currentCodeIdAndVector = randomCodeIdsAndVectors
-		// Sort by CodeBlockID
-		randomCodeIdsAndVectors.sort(Comparator.comparingDouble(IdAndVector -> IdAndVector.Left));
+		// Get matching code snips. Code records to be evaluated
+		randomCodeRecords = new LinkedList<>();
 
-		// Get matching code snips
-		List<CSVRecord> randomCodeRecords = new LinkedList<>();
-		
 		int i = 0;
 		for (CSVRecord codeRecord : codeRecords) {
 			if (i >= randomCodeIdsAndVectors.size()) {
@@ -99,21 +88,50 @@ public class Evaluation {
 			}
 
 		}
-
 		
+		endTime = System.nanoTime();
+		elapsedTime = endTime - startTime;
+
+		System.out.println("Selecting random test snips time: " + elapsedTime / Math.pow(10, 9) + " seconds");
+		/*
+		 * this.k = k; this.typeOfDistance = typeOfDistance;
+		 * 
+		 * this.typeOfPruning = typeOfPruning;
+		 * 
+		 * this.truePositives = 0;
+		 */
+		
+		
+	}
+
+	// params: number of code snips to evaluate
+	// value of k in precision/recall@k
+	// TODO number of leaf nodes to prune
+
+	public Map<Integer, Integer> evaluate(List<Integer> ks, Recommender.Distance typeOfDistance,
+			Map<Evaluation.Pruning, Integer> pruningConfig) {
+		// Load vectors from file
+
+		// Get random sample from code IDs and vectors to test
+		// List<Pair<Long, int[]>> randomCodeIdsAndVectors =
+		// Utils.selectRandomElements(selectedCodeIdsAndVectors, noOfTests);
+
+		// Pair<Long, int[]> currentCodeIdAndVector = randomCodeIdsAndVectors
+		// Sort by CodeBlockID
+
 		long startTime = System.nanoTime();
 		Recommender recommender = new Recommender(selectedCodeIdsAndVectors);
-		
+
 		Map<Integer, Integer> KsAndTPs = new HashMap<>();
 		// Iterate over each test case
-		
+
 		for (CSVRecord codeRecord : randomCodeRecords) {
 
 			String queryCode = codeRecord.get("Content");
 
 			ASTNode alteredAST = null;
-			
-			for(Pruning typeOfPruning : pruningConfig.keySet()) {
+
+			for (Pruning typeOfPruning : pruningConfig.keySet()) {
 				int pruningValue = pruningConfig.get(typeOfPruning);
 				switch (typeOfPruning) {
 				case STATEMENTS:
@@ -131,64 +149,102 @@ public class Evaluation {
 				}
 			}
 
-			
+			List<Pair<Long, Double>> similarCodeIdsAndDistances = recommender.getSimilarSnips(typeOfDistance, queryCode,
+					alteredAST);
 
-			List<Pair<Long, Double>> similarCodeIdsAndDistances = 
-					recommender.getSimilarSnips(typeOfDistance, queryCode, alteredAST);
-			
-			
 			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
-			//System.out.println(codeBlockId + ":" + similarCodeIdsAndDistances.get(0).Left);
+			// System.out.println(codeBlockId + ":" +
+			// similarCodeIdsAndDistances.get(0).Left);
 
-			
-			
-			for(int k: ks) {
-				if (similarCodeIdsAndDistances.subList(0, k).stream().filter(pair -> pair.Left == codeBlockId).findFirst().isPresent()) {
-					//int tp = KsAndTPs.get(k);
-					//KsAndTPs.put(k, tp + 1);
-					
+			for (int k : ks) {
+				if (similarCodeIdsAndDistances.subList(0, k).stream().filter(pair -> pair.Left == codeBlockId)
+						.findFirst().isPresent()) {
+					// int tp = KsAndTPs.get(k);
+					// KsAndTPs.put(k, tp + 1);
+					boolean inspectMode = false;
+
+					// Display the recommended snips and their distances
+					if (inspectMode) {
+						List<Long> kCodeIds = new LinkedList<>();
+
+						similarCodeIdsAndDistances.subList(0, k).forEach(pair -> kCodeIds.add(pair.Left));
+
+						Iterable<CSVRecord> codeRecords = Utils.loadCSVDataFrom(codeSnipsFile, true);
+						List<CSVRecord> similarCodeRecords = Utils.getCodeRecordsByIds(kCodeIds, codeRecords);
+
+						System.out.println("Query Code: \n" + queryCode);
+
+						for (int j = 0; j < k; j++) {
+							Pair<Long, Double> IdAndDist = similarCodeIdsAndDistances.get(j);
+							Long codeId = IdAndDist.Left;
+
+							String currCodeSnip = similarCodeRecords.stream()
+									.filter(record -> Long.parseUnsignedLong(record.get("CodeBlockId")) == codeId)
+									.findFirst().get().get("Content");
+
+							System.out.println("Rank: " + j);
+							System.out.println("CodeBlockID: " + codeId);
+							if (codeBlockId == codeId) {
+								System.out.println("[ORIGNAL SNIPPET]");
+							}
+							System.out.println("Code: \n" + currCodeSnip);
+							System.out.println("-----------");
+						}
+
+						System.out.println("============");
+					}
+
 					KsAndTPs.merge(k, 1, Integer::sum);
-					//truePositives++;
+					// truePositives++;
 				}
-				
-				
+
 			}
-			
+
 		}
 
 		long endTime = System.nanoTime();
 		long elapsedTime = endTime - startTime;
 
-		//double precision = (truePositives / (double) noOfTests) * 100;
-		//System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
-		
-		//System.out.println("=== === === === ===");
-		/*System.out.println("Distance measure: " + typeOfDistance.name());
-		System.out.println("No of tests: " + noOfTests);
-		System.out.println("Randomely chosen from: " + totalNoOfSnips + " code snippets");
-		System.out.println("Pruning: " + pruningConfig);
-		System.out.println("Correct predictions @" + k + ": " + truePositives);
-		
-		System.out.println("Precision @" + k + ": " + precision + "%");
 		System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
-		System.out.println("=== === === === ===");*/
-		
+
+		/*
+		 * double precision = (truePositives / (double) noOfTests) * 100;
+		 * System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + "
+		 * seconds");
+		 */
+
+		// System.out.println("=== === === === ===");
+		/*
+		 * for(int k : KsAndTPs.keySet()) { int truePositives = KsAndTPs.get(k); double
+		 * precision = (truePositives/(double) noOfTests) * 100;
+		 * 
+		 * System.out.println("Distance measure: " + typeOfDistance.name());
+		 * System.out.println("No of tests: " + noOfTests);
+		 * System.out.println("Randomely chosen from: " + totalNoOfSnips +
+		 * " code snippets"); System.out.println("Pruning: " + pruningConfig);
+		 * System.out.println("Correct predictions @" + k + ": " + truePositives);
+		 * 
+		 * System.out.println("Precision @" + k + ": " + precision + "%");
+		 * System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) +
+		 * " seconds"); System.out.println("=== === === === ==="); }
+		 */
+
 		return KsAndTPs;
 	}
 
-	/*public void printResults() {
-		System.out.println("=== === === === ===");
-		String distanceMeasure = typeOfDistance == Recommender.Distance.EUCLIDEAN ? "Euclidean" : "Cosine";
-		System.out.println("Distance measure: " + distanceMeasure);
-		System.out.println("No of tests: " + noOfTests);
-		System.out.println("Randomely chosen from: " + totalNoOfSnips + " code snippets");
-		System.out.println("Pruning: " + typeOfPruning.name());
-		System.out.println("Correct predictions @" + k + ": " + truePositives);
-		double precision = (truePositives / (double) noOfTests) * 100;
-		System.out.println("Precision @" + k + ": " + precision + "%");
-		System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
-		System.out.println("=== === === === ===");
-	}*/
+	/*
+	 * public void printResults() { System.out.println("=== === === === ===");
+	 * String distanceMeasure = typeOfDistance == Recommender.Distance.EUCLIDEAN ?
+	 * "Euclidean" : "Cosine"; System.out.println("Distance measure: " +
+	 * distanceMeasure); System.out.println("No of tests: " + noOfTests);
+	 * System.out.println("Randomely chosen from: " + totalNoOfSnips +
+	 * " code snippets"); System.out.println("Pruning: " + typeOfPruning.name());
+	 * System.out.println("Correct predictions @" + k + ": " + truePositives);
+	 * double precision = (truePositives / (double) noOfTests) * 100;
+	 * System.out.println("Precision @" + k + ": " + precision + "%");
+	 * System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) +
+	 * " seconds"); System.out.println("=== === === === ==="); }
+	 */
 
 	private ASTNode alterIdentifiers(String snip, int noOfAlterations) {
 		// Document snipDoc = new Document(snip);

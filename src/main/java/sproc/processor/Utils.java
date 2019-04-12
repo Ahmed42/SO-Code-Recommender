@@ -7,9 +7,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -58,7 +60,8 @@ public class Utils {
 	 * 
 	 * @return True if AST is valid
 	 */
-	public static boolean isASTValid(ASTNode node) {
+	public static boolean isASTValidHeuristics(ASTNode node) {
+		
 		List props = node.structuralPropertiesForType();
 		for (Object prop : props) {
 			StructuralPropertyDescriptor structPropKey = (StructuralPropertyDescriptor) prop;
@@ -82,6 +85,12 @@ public class Utils {
 
 		return false;
 	}
+	
+	public static boolean isASTValidFlags(ASTNode node) {
+		int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
+		
+		return (isInvalid == 0);
+	}
 
 	/**
 	 * Attempts to parse the snippet according to each one of the types in
@@ -101,6 +110,14 @@ public class Utils {
 
 		for (int kind : kindsOfParsing) {
 			ASTParser parser = ASTParser.newParser(AST.JLS8);
+			
+			//parser.setBindingsRecovery(false);
+	        //parser.setStatementsRecovery(false);
+			
+			//Map options = JavaCore.getOptions();
+			 //JavaCore.setComplianceOptions(JavaCore.VERSION_1_8, options);
+			 //parser.setCompilerOptions(options);
+			
 			parser.setKind(kind);
 			parser.setSource(codeSnip.toCharArray());
 
@@ -113,7 +130,7 @@ public class Utils {
 				continue;
 			}
 
-			if (isASTValid(codeSnipAST)) {
+			if (isASTValidFlags(codeSnipAST) && isASTValidHeuristics(codeSnipAST)) {
 				return new Pair<ASTNode, Integer>(codeSnipAST, kind);
 			}
 		}
@@ -224,6 +241,36 @@ public class Utils {
 		} 
 		
 		return records;
+	}
+	
+	public static List<CSVRecord> getCodeRecordsByIds(List<Long> codeIds, Iterable<CSVRecord> codeRecords) {
+		List<CSVRecord> retrievedCodeRecords = new LinkedList<>();
+		codeIds.sort(null);
+		
+		
+		int i = 0;
+		//int j = 0;
+		for (CSVRecord codeRecord : codeRecords) {
+			if (i >= codeIds.size()) {
+				break;
+			}
+
+			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
+
+			long currentVectorCodeId = codeIds.get(i);
+
+			if (codeBlockId == currentVectorCodeId) {
+				// Add code snip
+				retrievedCodeRecords.add(codeRecord);
+				i++;
+			}
+			//j++;
+		}
+		
+		//System.out.println("Gone thru: " + j + " snips");
+		//System.out.println("Retrieved: " + i + " snips");
+		
+		return retrievedCodeRecords;
 	}
 	
 }
