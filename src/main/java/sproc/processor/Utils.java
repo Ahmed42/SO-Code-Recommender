@@ -12,10 +12,12 @@ import java.util.Map;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 
 public class Utils {
@@ -91,6 +93,21 @@ public class Utils {
 		
 		return (isInvalid == 0);
 	}
+	
+	public static boolean isASTValidMsgs(ASTNode node) {
+		int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
+		
+		int noOfPrblms = 0;
+		int noOfMsgs = 0;
+		if(node.getClass() == CompilationUnit.class) {
+			IProblem[] problems = ((CompilationUnit) node).getProblems();
+			noOfMsgs =  ((CompilationUnit) node).getMessages().length;
+			noOfPrblms = problems.length;
+			
+		}
+		
+		return (isInvalid == 0) && (noOfPrblms == 0) && (noOfMsgs == 0);
+	}
 
 	/**
 	 * Attempts to parse the snippet according to each one of the types in
@@ -105,8 +122,12 @@ public class Utils {
 	 *         parsing that produced it
 	 */
 	public static Pair<ASTNode, Integer> getCodeSnipTypedAST(String codeSnip) {
-		int[] kindsOfParsing = new int[] { ASTParser.K_COMPILATION_UNIT, ASTParser.K_CLASS_BODY_DECLARATIONS,
-				ASTParser.K_STATEMENTS, ASTParser.K_EXPRESSION };
+		int[] kindsOfParsing = new int[] { 
+				ASTParser.K_COMPILATION_UNIT, 
+				ASTParser.K_CLASS_BODY_DECLARATIONS,
+				ASTParser.K_STATEMENTS, 
+				ASTParser.K_EXPRESSION 
+				};
 
 		for (int kind : kindsOfParsing) {
 			ASTParser parser = ASTParser.newParser(AST.JLS8);
@@ -121,6 +142,7 @@ public class Utils {
 			parser.setKind(kind);
 			parser.setSource(codeSnip.toCharArray());
 
+		
 			ASTNode codeSnipAST;
 			try {
 				codeSnipAST = parser.createAST(null);
@@ -133,6 +155,9 @@ public class Utils {
 			if (isASTValidFlags(codeSnipAST) && isASTValidHeuristics(codeSnipAST)) {
 				return new Pair<ASTNode, Integer>(codeSnipAST, kind);
 			}
+			/*if (isASTValidMsgs(codeSnipAST)) {
+				return new Pair<ASTNode, Integer>(codeSnipAST, kind);
+			}*/
 		}
 		return new Pair<ASTNode, Integer>(null, -1);
 	}

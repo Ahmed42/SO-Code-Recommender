@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
@@ -16,10 +18,13 @@ public class VecGenerator {
 	private long elapsedTime;
 	private long parsedSnipCount;
 	private long totalSnipAttempted;
+	private Map<Integer, Integer> kindsOfParsingStats;
 	
 	public VecGenerator(String codesFile, String vectorsFile) {
 		this.codesFile = codesFile;
 		this.vectorsFile = vectorsFile;
+		
+		 kindsOfParsingStats = new HashMap<>();
 	}
 	
 	
@@ -44,6 +49,8 @@ public class VecGenerator {
 			return;
 		}
 		
+		
+		
     	Reader reader = new FileReader(codesFile);
     	Iterable<CSVRecord> records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
     	
@@ -59,11 +66,14 @@ public class VecGenerator {
     		//String answerId = record.get("AnswerId");
     		String codeSnip = record.get("Content");
     		
-    		System.out.println("Parsing snippet no: " + totalSnipAttempted);
+    		System.out.print("Parsing snippet no: " + totalSnipAttempted + ", ");
     		
     		// Get code snip AST and parse kind
     		Pair<ASTNode, Integer> codeSnipTypedAST = Utils.getCodeSnipTypedAST(codeSnip);
     		
+    		kindsOfParsingStats.merge(codeSnipTypedAST.Right, 1, Integer::sum);
+    		
+    		//System.out.println(", kind: " + codeSnipTypedAST.Right);
     		
     		if(codeSnipTypedAST.Right != -1) {
     			parsedSnipCount++;
@@ -76,6 +86,8 @@ public class VecGenerator {
     			// [1, 2, 3, 4] -> 1, 2, 3, 4
     			CSVFormat.DEFAULT.printRecord(writer, codeBlockId, 
     					codeSnipVecStr.substring(1, codeSnipVecStr.length() - 1));
+    			
+    			System.out.println("");
     		} else {
     			System.out.println("Skipping snippet ID: " + codeBlockId);
     		}
@@ -93,6 +105,7 @@ public class VecGenerator {
 	public void printResults() {
     	System.out.println("Total snippets: " + totalSnipAttempted);
     	System.out.println("Successfully parsed: " + parsedSnipCount);
+    	System.out.println("Kinds of parsing stats: " + kindsOfParsingStats);
     	System.out.println("Total processing time: " + elapsedTime/Math.pow(10,9) + " seconds");
     	System.out.println("Avg processing time per snippet: " 
     	+ elapsedTime/(totalSnipAttempted * Math.pow(10, 6)) + "ms" );

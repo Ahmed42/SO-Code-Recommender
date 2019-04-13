@@ -21,39 +21,105 @@ import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.StructuralPropertyDescriptor;
 
 public class App {
-	public static String shortCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\more_java_code_snips.csv";
+	//public static String shortCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\more_java_code_snips.csv";
 	public static String highScoreCodeSnipsFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\java_snips_score_10.csv";
 
-	public static String vectorsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_short.csv";
-	public static String vectorsFileHigh = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_high_score.csv";
+	//public static String vectorsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_short.csv";
+	//public static String vectorsFileHigh = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\snips_vectors_high_score.csv";
 	
-	public static String rectifiedVecsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_short.csv"; 
-	public static String rectifiedVecsFileLong = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_long.csv";
+	//public static String rectifiedVecsFileShort = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_short.csv"; 
+	//public static String rectifiedVecsFileLong = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_long.csv";
 	
 	//public static String rectifiedVecsFileShort2 = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_short2.csv"; 
 	//public static String rectifiedVecsFileLong2 = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\rectified_vectors_long2.csv";
 
+	public static String javaCodesFile = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\actual_java_snips.csv";
+	public static String javaVecFiles = "C:\\Users\\Admin\\Documents\\UofA\\CMPUT 663\\Project\\actual_java_vecs.csv";
+	
+	public static int noOfTests = 500;
+	public static int totalSnips = 27523;
+	//public static int totalSnips = 13968;
 	
 	public static void main(String[] args) throws IOException {
 
+		//inspectSomeSnips(javaCodesFile);
 		//distanceEvaluationConcise();
 		
 		//TestLuc.runTest();
 		
+		
+		//inspectingCSharpSnip();
 		//quickTest2();
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, 107114, 10);
-		statementRemovalEvaluation(evaluation, 10, Recommender.Distance.EUCLIDEAN);
-		//statementRemovalEvaluation(evaluation, 500, Recommender.Distance.COSINE);
+		//Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, totalSnips, noOfTests);
+		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN);
+		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE);
+		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE);
 		
 		
-		//vectorsGeneration();
+		vectorsGeneration();
 		System.out.println("Done!");
+	}
+	
+	public static void inspectSomeSnips(String codesFile) throws IOException {
+		Reader reader = new FileReader(codesFile);
+    	Iterable<CSVRecord> records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+    
+    	
+    	Map<Integer, String> KindToCode = new HashMap<>();
+    	Map<Integer, ASTNode> KindToAST = new HashMap<>();
+    	
+    	int noOfSnips = 0;
+    	for (CSVRecord record : records) {
+    		noOfSnips++;
+    		long codeBlockId = Long.parseUnsignedLong(record.get("CodeBlockId"));
+    		String codeSnip = record.get("Content");
+    		
+    		Pair<ASTNode, Integer> codeSnipTypedAST = Utils.getCodeSnipTypedAST(codeSnip);
+    		
+    		if(KindToCode.size() == 4) {
+    			break;
+    		}
+    		
+    		if(codeSnipTypedAST.Right == -1) {
+    			continue;
+    		}
+    		
+    		String code = KindToCode.get(codeSnipTypedAST.Right);
+    		
+    		if(code != null) {
+    			continue;
+    		} else {
+    			KindToCode.put(codeSnipTypedAST.Right, codeSnip);
+    			KindToAST.put(codeSnipTypedAST.Right, codeSnipTypedAST.Left);
+    		}
+    		
+    		
+    	}
+    	
+    	//System.out.println(KindToCode);
+    	System.out.println("Num of snips: " + noOfSnips);
+    	
+    	for(int k : KindToAST.keySet()) {
+    		System.out.println("Kind: " + k);
+    		System.out.println("Code: " + KindToCode.get(k));
+    		
+    		ASTNode node = KindToAST.get(k);
+    		
+    		node.accept(new ASTVisitor() {
+    			public void preVisit(ASTNode node) {
+    				System.out.println("----");
+    				System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node);
+    				}
+    			});
+    		
+    		System.out.println("=====");
+    	}
 	}
 	
 	public static void quickTest2() {
 		int totalSnips = 107114;
 		int noOfTests = 500;
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, totalSnips, noOfTests);
+		Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, totalSnips, noOfTests);
 		
 		int k = 5;
 		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
@@ -67,7 +133,7 @@ public class App {
 	}
 	
 	public static void vectorsGeneration() throws IOException {
-		VecGenerator vecGen = new VecGenerator(highScoreCodeSnipsFile, rectifiedVecsFileLong);
+		VecGenerator vecGen = new VecGenerator(javaCodesFile, javaVecFiles);
 		
 		vecGen.computeAndStoreTreeVectors();
 		
@@ -81,13 +147,20 @@ public class App {
 		
 		String snip = retrievedRecords.get(0).get("Content");
 		
-		System.out.println(snip);
+		//System.out.println(snip);
 		
 		System.out.println("--------");
 		
 		Pair<ASTNode, Integer> typedAST =  Utils.getCodeSnipTypedAST(snip);
 		
 		ASTNode node = typedAST.Left;
+		
+int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
+		
+		System.out.println("kind " + typedAST.Right);
+		System.out.println("Flag " + node.getFlags());
+		
+		System.out.println(isInvalid);
 		
 		node.accept(new ASTVisitor() {
 			public void preVisit(ASTNode node) {
@@ -97,12 +170,7 @@ public class App {
 			}
 		});
 		
-		int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 		
-		System.out.println("kind " + typedAST.Right);
-		System.out.println("Flag " + node.getFlags());
-		
-		System.out.println(isInvalid);
 	}
 
 	/*
@@ -125,10 +193,10 @@ public class App {
 	}
 	
 	public static void distanceEvaluationConcise() {
-		int noOfTests = 500;
+		//int noOfTests = 500;
 		//int totalSnips = 107114;
-		int totalSnips = 10000;
-		Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, rectifiedVecsFileLong, totalSnips, noOfTests);
+		//int totalSnips = 10000;
+		Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, totalSnips, noOfTests);
 
 		List<Integer> Ks = Arrays.asList(1,5, 10);
 		
@@ -154,7 +222,7 @@ public class App {
 	public static void distanceEvaluation() {
 		//Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
 		int noOfTests = 500;
-		Evaluation evaluation = new Evaluation(shortCodeSnipsFile, rectifiedVecsFileShort, 6616, noOfTests);
+		Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, 6616, noOfTests);
 
 		List<Integer> Ks = Arrays.asList(1, 10);
 		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
@@ -236,8 +304,10 @@ public class App {
 				System.out.print("Precision@" + k + ": " + precision + ", ");
 			}
 			System.out.println("");
-
+			
+			System.out.println("\n");
 		}
+		
 	}
 
 	/*

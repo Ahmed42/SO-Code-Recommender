@@ -125,6 +125,7 @@ public class Evaluation {
 		Map<Integer, Integer> KsAndTPs = new HashMap<>();
 		// Iterate over each test case
 
+		double sumOfReciprocalRanks = 0;
 		for (CSVRecord codeRecord : randomCodeRecords) {
 
 			String queryCode = codeRecord.get("Content");
@@ -148,11 +149,21 @@ public class Evaluation {
 					break;
 				}
 			}
+			
+			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
 
 			List<Pair<Long, Double>> similarCodeIdsAndDistances = recommender.getSimilarSnips(typeOfDistance, queryCode,
 					alteredAST);
-
-			long codeBlockId = Long.parseUnsignedLong(codeRecord.get("CodeBlockId"));
+			
+			Pair<Long, Double> originalPair = similarCodeIdsAndDistances.stream().filter(pair -> pair.Left == codeBlockId).findFirst().get();
+			
+			int resultRank = similarCodeIdsAndDistances.indexOf(originalPair);
+			
+			
+			double reciprocalRank = resultRank == -1? 0 : 1/(double) (resultRank + 1);
+			
+			sumOfReciprocalRanks += reciprocalRank;
+			
 			// System.out.println(codeBlockId + ":" +
 			// similarCodeIdsAndDistances.get(0).Left);
 
@@ -201,11 +212,14 @@ public class Evaluation {
 			}
 
 		}
+		
+		double meanReciprocalRank = sumOfReciprocalRanks/noOfTests;
 
 		long endTime = System.nanoTime();
 		long elapsedTime = endTime - startTime;
 
 		System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
+		System.out.println("MRR: " + meanReciprocalRank);
 
 		/*
 		 * double precision = (truePositives / (double) noOfTests) * 100;
