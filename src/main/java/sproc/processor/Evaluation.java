@@ -37,7 +37,8 @@ public class Evaluation {
 	private List<CSVRecord> randomCodeRecords; // Snips to be tested
 
 	public enum Pruning {
-		NONE, LINES, IDENTIFIERS, STATEMENTS
+		NONE, LINES, LITERALS, IDENTIFIERS, MODIFIERS, 
+		STATEMENTS, ASSIGNMENT, INFIX, INVOCATION, RETURN, VAR_DECLARATION, FIELD_DECLARATION, METHOD_DECLARATION, ARGS
 	};
 
 	// private Pruning typeOfPruning;
@@ -108,7 +109,8 @@ public class Evaluation {
 	// value of k in precision/recall@k
 	// TODO number of leaf nodes to prune
 
-	public Map<Integer, Integer> evaluate(List<Integer> ks, Recommender.Distance typeOfDistance,
+	// Map<Integer, Integer>
+	public void evaluate(List<Integer> ks, Recommender.Distance typeOfDistance,
 			Map<Evaluation.Pruning, Integer> pruningConfig) {
 		// Load vectors from file
 
@@ -124,7 +126,10 @@ public class Evaluation {
 
 		Map<Integer, Integer> KsAndTPs = new HashMap<>();
 		// Iterate over each test case
-
+		
+		// MRRs per each parsing kind
+		//Map<Integer, Double> MRRs = new HashMap<>();
+		//Map<Integer, Integer> parseCounts = new HashMap<>();
 		double sumOfReciprocalRanks = 0;
 		for (CSVRecord codeRecord : randomCodeRecords) {
 
@@ -135,9 +140,6 @@ public class Evaluation {
 			for (Pruning typeOfPruning : pruningConfig.keySet()) {
 				int pruningValue = pruningConfig.get(typeOfPruning);
 				switch (typeOfPruning) {
-				case STATEMENTS:
-					alteredAST = removeStatements(queryCode, pruningValue);
-					break;
 				case IDENTIFIERS:
 					alteredAST = alterIdentifiers(queryCode, pruningValue);
 					break;
@@ -145,7 +147,53 @@ public class Evaluation {
 					// Need more work. For example, number of lines could exceed the snip .. etc
 					queryCode = pruneLines(queryCode, 3);
 					break;
+				case LITERALS:
+					alteredAST = removeLiterals(queryCode, pruningValue);
+					break;
+					
+					
+				case STATEMENTS:
+					alteredAST = removeStatements(queryCode, pruningValue, -1);
+					break;
+				case VAR_DECLARATION:
+					alteredAST = removeStatements(queryCode, pruningValue, ASTNode.VARIABLE_DECLARATION_STATEMENT);
+					break;
+				case RETURN:
+					alteredAST = removeStatements(queryCode, pruningValue, ASTNode.RETURN_STATEMENT);
+					break;
+				
+				case ASSIGNMENT:
+					alteredAST = removeExpressionStatement(queryCode, pruningValue, ASTNode.ASSIGNMENT);
+					break;
+				case INFIX:
+					alteredAST = removeExpressionStatement(queryCode, pruningValue, ASTNode.INFIX_EXPRESSION);
+					break;
+				case INVOCATION:
+					alteredAST = removeExpressionStatement(queryCode, pruningValue, ASTNode.METHOD_INVOCATION);
+					break;
+					
+				case FIELD_DECLARATION:
+					alteredAST = removeDeclarations(queryCode, pruningValue, ASTNode.FIELD_DECLARATION);
+					break;
+				case METHOD_DECLARATION:
+					alteredAST = removeDeclarations(queryCode, pruningValue, ASTNode.METHOD_DECLARATION);
+					break;
+					
+				case ARGS:
+					alteredAST = removeArgs(queryCode, pruningValue);
+					break;
+					
+					
+				case MODIFIERS:
+					alteredAST = removeModifiers(queryCode, pruningValue);
+					break;
+				
 				case NONE:
+					break;
+				
+				
+				
+				default:
 					break;
 				}
 			}
@@ -164,10 +212,13 @@ public class Evaluation {
 			
 			sumOfReciprocalRanks += reciprocalRank;
 			
+			Pair<ASTNode, Integer> nodePair = Utils.getCodeSnipTypedAST(queryCode);
+			//MRRs.merge(nodePair.Right, reciprocalRank, Double::sum);
+			
 			// System.out.println(codeBlockId + ":" +
 			// similarCodeIdsAndDistances.get(0).Left);
 
-			for (int k : ks) {
+			/*for (int k : ks) {
 				if (similarCodeIdsAndDistances.subList(0, k).stream().filter(pair -> pair.Left == codeBlockId)
 						.findFirst().isPresent()) {
 					// int tp = KsAndTPs.get(k);
@@ -209,7 +260,7 @@ public class Evaluation {
 					// truePositives++;
 				}
 
-			}
+			}*/
 
 		}
 		
@@ -218,8 +269,9 @@ public class Evaluation {
 		long endTime = System.nanoTime();
 		long elapsedTime = endTime - startTime;
 
-		System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
+		//System.out.println("Total time: " + elapsedTime / Math.pow(10, 9) + " seconds");
 		System.out.println("MRR: " + meanReciprocalRank);
+		//System.out.println("MRRs: " + MRRs);
 
 		/*
 		 * double precision = (truePositives / (double) noOfTests) * 100;
@@ -243,7 +295,7 @@ public class Evaluation {
 		 * " seconds"); System.out.println("=== === === === ==="); }
 		 */
 
-		return KsAndTPs;
+		//return KsAndTPs;
 	}
 
 	/*
@@ -305,7 +357,8 @@ public class Evaluation {
 
 	}
 
-	private ASTNode removeStatements(String snip, int noOfStatements) {
+	// Works with VARIABLE_DECLARATION_STATEMENT, RETURN_STATEMENT, and all statements
+	private ASTNode removeStatements(String snip, int noOfStatements, int statementType) {
 		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
 		ASTNode node = typedAST.Left;
 
@@ -313,8 +366,9 @@ public class Evaluation {
 		Pair<Integer, Integer> removeCount = new Pair<>(count, noOfStatements);
 		node.accept(new ASTVisitor() {
 			public void preVisit(ASTNode node) {
-				// we can also do getClass = "org.eclipse.jdt.core.dom.Statement" or something
-				if (node.getParent() != null && node.getParent().getNodeType() == ASTNode.BLOCK) {
+				if (node.getParent() != null 
+						&& node.getParent().getNodeType() == ASTNode.BLOCK
+						&& (statementType == -1 || node.getNodeType() == statementType)) {
 					if (removeCount.Left < removeCount.Right) {
 						node.delete();
 						removeCount.Left++;
@@ -325,6 +379,170 @@ public class Evaluation {
 
 		return node;
 	}
+	
+	
+	// METHOD_INVOCATION, ASSIGNMENT, INFIX_EXPRESSION
+	private ASTNode removeExpressionStatement(String snip, int noOfStatements, int statementType) {
+		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
+		ASTNode node = typedAST.Left;
+
+		int count = 0;
+		Pair<Integer, Integer> removeCount = new Pair<>(count, noOfStatements);
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+				if (removeCount.Left < removeCount.Right) {
+				if (node.getParent() != null 
+						&& node.getParent().getNodeType() == ASTNode.BLOCK
+						&& node.getNodeType() == ASTNode.EXPRESSION_STATEMENT) {
+					
+					List<StructuralPropertyDescriptor> props = node.structuralPropertiesForType();
+					StructuralPropertyDescriptor expProp = 
+							(StructuralPropertyDescriptor) props.stream()
+							.filter(a -> a.getId() == "expression")
+							.findFirst().get();
+					
+					ASTNode childExp = (ASTNode) node.getStructuralProperty(expProp);
+					
+					if(childExp.getNodeType() == statementType) {
+						node.delete();
+						removeCount.Left++;
+					}
+					}
+				}
+			}
+		});
+
+		return node;
+	}
+	
+	// FIELD_DECLARATION, METHOD_DECLARATION
+	private ASTNode removeDeclarations(String snip, int noOfStatements, int decType) {
+		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
+		ASTNode node = typedAST.Left;
+
+		int count = 0;
+		Pair<Integer, Integer> removeCount = new Pair<>(count, noOfStatements);
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+				if (removeCount.Left < removeCount.Right) {
+				if (node.getNodeType() == decType) {
+						node.delete();
+						removeCount.Left++;
+					}
+				}
+			}
+		});
+
+		return node;
+	}
+	
+	private ASTNode removeArgs(String snip, int noOfArgs) {
+		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
+		ASTNode node = typedAST.Left;
+
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+
+				List<StructuralPropertyDescriptor> props = node.structuralPropertiesForType();
+				
+				for(StructuralPropertyDescriptor prop : props) {
+					if(prop.getId() == "arguments") {
+						List<ASTNode> args = (List<ASTNode>) node.getStructuralProperty(prop);
+						
+						int maxRemoval = Math.min(args.size(), noOfArgs);
+						
+						for(int i = 0; i < maxRemoval; i++) {
+							args.remove(0);
+						}
+					}
+				}
+			}
+		});
+
+		return node;
+	}
+	
+	private ASTNode removeLiterals(String snip, int noOfLiterals) {
+		
+		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
+		ASTNode node = typedAST.Left;
+
+		int count = 0;
+		Pair<Integer, Integer> removeCount = new Pair<>(count, noOfLiterals);
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+				// we can also do getClass = "org.eclipse.jdt.core.dom.Statement" or something
+				if (//node.getParent() != null && 
+						//node.getParent().getNodeType() == ASTNode.BLOCK && 
+						//node.getClass().toString().contains("Modifier")
+						node.getNodeType() == ASTNode.BOOLEAN_LITERAL
+						//|| node.getNodeType() == ASTNode.TRY_STATEMENT
+						) {
+					if (removeCount.Left < removeCount.Right) {
+						//try {
+						node.delete();
+						removeCount.Left++;
+						//System.out.println("Removal successful.");
+						//} catch(IllegalArgumentException e) {
+							//System.out.println("Removal failed.");
+						//}
+					}
+				}
+			}
+		});
+
+		return node;
+	}
+	
+	
+	private ASTNode removeModifiers(String snip, int noOfModifiers) {
+		Pair<ASTNode, Integer> typedAST = Utils.getCodeSnipTypedAST(snip);
+		ASTNode node = typedAST.Left;
+
+		int count = 0;
+		Pair<Integer, Integer> removeCount = new Pair<>(count, noOfModifiers);
+		node.accept(new ASTVisitor() {
+			public void preVisit(ASTNode node) {
+				// we can also do getClass = "org.eclipse.jdt.core.dom.Statement" or something
+				if (
+						node.getNodeType() == ASTNode.MODIFIER
+						) {
+					if (removeCount.Left < removeCount.Right) {
+						try {
+						node.delete();
+						removeCount.Left++;
+						//System.out.println("Removal successful.");
+						} catch(IllegalArgumentException e) {
+							System.out.println("Removal failed.");
+						}
+					}
+				}
+			}
+		});
+
+		return node;
+	}
+	
+	/*private String pruneRandomLines(String snip, int noOfLines) {
+		
+		List<String> lines = Arrays.asList(snip.split("\n"));
+		
+		if(noOfLines >= lines.size()) {
+			noOfLines = lines.size() - 1;
+		}
+		
+		for(int i = 0; i < noOfLines; i++) {
+			int currentLength = lines.size();
+			
+			int lineToRemove = ThreadLocalRandom.current().nextInt(currentLength);
+			
+			lines.remove(lineToRemove);
+		}
+		
+		String prunedSnip = String.join("\n", lines);
+		
+		return prunedSnip;
+	}*/
 
 	private String pruneLines(String snip, int noOfLines) {
 		System.out.println(snip);

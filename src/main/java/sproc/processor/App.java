@@ -38,25 +38,72 @@ public class App {
 	
 	public static int noOfTests = 500;
 	public static int totalSnips = 27523;
+	//public static int totalSnips = 20000;
 	//public static int totalSnips = 13968;
+	
+	//public static int totalSnips = 15000;
+	//public static int totalSnips = 10000;
+	//public static int totalSnips = 20000;
+	
 	
 	public static void main(String[] args) throws IOException {
 
 		//inspectSomeSnips(javaCodesFile);
 		//distanceEvaluationConcise();
 		
-		//TestLuc.runTest();
+		//tryingToGetNonParsableCode();
+
+		Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, totalSnips, noOfTests);
 		
 		
-		//inspectingCSharpSnip();
-		//quickTest2();
-		//Evaluation evaluation = new Evaluation(javaCodesFile, javaVecFiles, totalSnips, noOfTests);
-		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN);
-		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE);
-		//statementRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE);
+		// All statements
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.STATEMENTS);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.STATEMENTS);
 		
+		// INFIX_EXPRESSION [Ignore]
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.INFIX);
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.INFIX);
 		
-		vectorsGeneration();
+		// ASSIGNMENT
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.ASSIGNMENT);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.ASSIGNMENT);
+		
+		// METHOD_INVOCATION
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.INVOCATION);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.INVOCATION);
+		
+		// RETURN_STATEMENT
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.RETURN);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.RETURN);
+		
+		// VARIABLE_DECLARATION_STATEMENT
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.VAR_DECLARATION);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.VAR_DECLARATION);
+		
+		// FIELD_DECLARATION
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.FIELD_DECLARATION);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.FIELD_DECLARATION);
+		
+		// METHOD_DECLARATION
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.METHOD_DECLARATION);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.METHOD_DECLARATION);
+		
+		// Method Arguments
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.ARGS);
+		removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.ARGS);
+		
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.LITERALS);
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.LITERALS);
+		
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.ARGS);
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE, Evaluation.Pruning.ARGS);
+		
+		//removalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN, Evaluation.Pruning.LITERALS);
+		
+		//literalRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.COSINE);
+		//modifierRemovalEvaluation(evaluation, noOfTests, Recommender.Distance.EUCLIDEAN);
+		
+		//vectorsGeneration();
 		System.out.println("Done!");
 	}
 	
@@ -72,6 +119,9 @@ public class App {
     	for (CSVRecord record : records) {
     		noOfSnips++;
     		long codeBlockId = Long.parseUnsignedLong(record.get("CodeBlockId"));
+    		if(codeBlockId <= 106156284) {
+    			continue;
+    		}
     		String codeSnip = record.get("Content");
     		
     		Pair<ASTNode, Integer> codeSnipTypedAST = Utils.getCodeSnipTypedAST(codeSnip);
@@ -89,6 +139,7 @@ public class App {
     		if(code != null) {
     			continue;
     		} else {
+    			System.out.println(codeBlockId);
     			KindToCode.put(codeSnipTypedAST.Right, codeSnip);
     			KindToAST.put(codeSnipTypedAST.Right, codeSnipTypedAST.Left);
     		}
@@ -115,7 +166,7 @@ public class App {
     		System.out.println("=====");
     	}
 	}
-	
+	/*
 	public static void quickTest2() {
 		int totalSnips = 107114;
 		int noOfTests = 500;
@@ -130,7 +181,7 @@ public class App {
 	    result = evaluation.evaluate(Arrays.asList(k), Recommender.Distance.COSINE, pruneConfig);
 	    
 	    System.out.println("precision@" + k + ": " + result.get(k)/(double) noOfTests * 100);
-	}
+	}*/
 	
 	public static void vectorsGeneration() throws IOException {
 		VecGenerator vecGen = new VecGenerator(javaCodesFile, javaVecFiles);
@@ -177,6 +228,7 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 	 * Evaluate multiple combinations of: Distance: [Euc, Cos], k: [1, 10], and
 	 * statements removed: [0, 5])
 	 */
+	/*
 	private static void evaluateDistance(Evaluation evaluation, int noOfStmts, Recommender.Distance typeOfDistance,
 			int noOfTests, List<Integer> Ks) {
 		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
@@ -191,8 +243,9 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 		}
 		System.out.println("===============");
 	}
-	
-	public static void distanceEvaluationConcise() {
+	*/
+	/*
+public static void distanceEvaluationConcise() {
 		//int noOfTests = 500;
 		//int totalSnips = 107114;
 		//int totalSnips = 10000;
@@ -218,7 +271,8 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 		// Statements = 10, Distance = Cosine
 		evaluateDistance(evaluation, 5, Recommender.Distance.COSINE, noOfTests, Ks);
 	}
-	
+	*/
+	/*
 	public static void distanceEvaluation() {
 		//Evaluation evaluation = new Evaluation(highScoreCodeSnipsFile, vectorsFileHigh, 133870, 500);
 		int noOfTests = 500;
@@ -279,12 +333,57 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 
 		System.out.println("===============");
 	}
+*/
+	
+	
+	/*public static void modifierRemovalEvaluation(Evaluation evaluation, int noOfTests,
+			Recommender.Distance typeOfDistance) {
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
 
+		for (int i = 0; i <= 10; i++) {
+			int modifiersToRemove = i;
+			pruneConfig.put(Evaluation.Pruning.MODIFIERS, modifiersToRemove);
+
+			Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Arrays.asList(1),
+					typeOfDistance, pruneConfig);
+			
+			System.out.println("Distance: " + typeOfDistance.name());
+			System.out.println("Modifiers removed: " + modifiersToRemove + ", ");
+			for (int k : KsAndTPs.keySet()) {
+				double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
+				System.out.print("Precision@" + k + ": " + precision + ", ");
+			}
+			System.out.println("\n");
+			
+		}
+	}*/
+	
+	
+	public static void removalEvaluation(Evaluation evaluation, int noOfTests,
+			Recommender.Distance typeOfDistance, Evaluation.Pruning typeOfRemoval) {
+		Map<Evaluation.Pruning, Integer> pruneConfig = new HashMap<>();
+
+		System.out.println("Total snips: " + totalSnips);
+		System.out.println("No of tests: " + noOfTests);
+		System.out.println("Distance: " + typeOfDistance.name());
+		System.out.println("Items removed: " + typeOfRemoval.name());
+		
+		for (int i = 0; i <= 10; i++) {
+			int toRemove = i;
+			pruneConfig.put(typeOfRemoval, toRemove);
+
+			evaluation.evaluate(Arrays.asList(1), typeOfDistance, pruneConfig);
+
+		}
+		
+		System.out.println("\n");
+	}
+	
 	/*
 	 * Evaluate recommender under different values of k and different number of
 	 * statements removal
 	 */
-	public static void statementRemovalEvaluation(Evaluation evaluation, int noOfTests,
+	/*public static void statementRemovalEvaluation(Evaluation evaluation, int noOfTests,
 			Recommender.Distance typeOfDistance) {
 		
 
@@ -294,21 +393,17 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 			int statementsToRemove = i;
 			pruneConfig.put(Evaluation.Pruning.STATEMENTS, statementsToRemove);
 
-			Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Arrays.asList(1, 5, 10, 20),
+			Map<Integer, Integer> KsAndTPs = evaluation.evaluate(Arrays.asList(1),
 					typeOfDistance, pruneConfig);
 			
 			System.out.println("Distance: " + typeOfDistance.name());
-			System.out.print("Statments removed: " + statementsToRemove + ", ");
-			for (int k : KsAndTPs.keySet()) {
-				double precision = (KsAndTPs.get(k) / (double) noOfTests) * 100;
-				System.out.print("Precision@" + k + ": " + precision + ", ");
-			}
-			System.out.println("");
-			
+			System.out.println("Statments removed: " + statementsToRemove + ", ");
+
 			System.out.println("\n");
+			
 		}
 		
-	}
+	}*/
 
 	/*
 	 * public static void coolEvals() { Evaluation evaluation = new
@@ -347,25 +442,78 @@ int isInvalid = node.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 	 * System.out.println("\n"); }
 	 */
 	public static void tryingToGetNonParsableCode() {
-		String queryCode1 = "class Test { public void foo() { int x = 1 + 2; System.out.println(\"haha\"); } "
+		String queryCode1 = "class Test { public void foo() { int x = 1 + 2; y = x + (1 - y)*10; y = f(); f(); System.out.println(\"haha\"); } "
 				+ "public boolean bar() { return false; }}"
 				+ "class Test2 { public String foobar() { return \"abort\"; }}";
 
-		String queryCode = "class heh {void method() { int x = 1; y = x; System.out.println(\"haha\");}}";
+		String queryCode = "import something; /* importing the fine things */ class heh {void method() { int x = 1; y = x; System.out.println(\"haha\");}} \\ rofl";
 
-		Pair<ASTNode, Integer> pair = getCodeSnipTypedAST(queryCode);
+		String queryCode2 = ""
+				+ "System.out.println(greeting1, greeting2.length);"
+				+ "";
+		
+		String qCode3 = "int x = 10;";
+		String qCode4 = "double y = --x + z;";
+		String qCode5 = "void f() { --b;"
+				+ "double y = a.g.c() + a--;}";
+		
+		String qCode6 = "try {"
+				+ "x = 213;"
+				+ "} catch(Exception e) { }";
+		
+		String qCode7 = "if(x == 1) {"
+				+ "print(\"Hello\");"
+				+ "read(x);"
+				+ "} else {"
+				+ "doSome(12);"
+				+ "doAnotherThing(14);"
+				+ "};";
+		
+		Pair<ASTNode, Integer> pair = getCodeSnipTypedAST(queryCode1);
+		
+		System.out.println("Kind: " + pair.Right);
 
-		int isInvalid = pair.Left.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
+		//int isInvalid = pair.Left.getFlags() & (ASTNode.MALFORMED | ASTNode.RECOVERED);
 
-		System.out.println(isInvalid);
-
+		//System.out.println(isInvalid);
 		pair.Left.accept(new ASTVisitor() {
 			public void preVisit(ASTNode node) {
 				System.out.println("===");
-				System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node);
-
+				System.out.println(node.getClass() + " : " + node.getNodeType() + " : " + node + ": parent - " + (node.getParent() == null? "" : node.getParent().getClass())  );
+				
+				List<StructuralPropertyDescriptor> props = node.structuralPropertiesForType();
+				
+				
+				if(node.getNodeType() == ASTNode.EXPRESSION_STATEMENT) {
+					StructuralPropertyDescriptor expProp = 
+							(StructuralPropertyDescriptor) props.stream().filter(a -> a.getId() == "expression")
+							.findFirst().get();
+					ASTNode childExp = (ASTNode) node.getStructuralProperty(expProp);
+					
+					//Object prop = node.getProperty("expression");
+					System.out.println("CHILD! " + childExp + " : " + childExp.getClass() );
+				}
+				
+				
+				/*List<StructuralPropertyDescriptor> props = node.structuralPropertiesForType();
+				
+				for(StructuralPropertyDescriptor prop : props) {
+					System.out.println("\t" + prop.getId() + " : " + node.getStructuralProperty(prop));
+				}*/
+				
+				
 			}
 		});
+		
+		
+		int[] vec = Utils.computeTreeVector(pair.Left);
+		
+		for(int i = 0; i < vec.length; i++) {
+			if(vec[i] != 0) {
+				System.out.println(i + " : " + vec[i]);
+			}
+			
+		}
 	}
 
 	/***
